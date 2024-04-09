@@ -7,10 +7,13 @@ from rclpy.action import ActionClient
 from rclpy.node import Node
 from om_aiv_msg.action import Action
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 
 GOTO_POINT_COMMAND = "doTask gotoPoint "
 GOAL_POSE_TOPIC = "goal_pose"
+GOAL_POINT_TOPIC = "/goal_point"  # New topic to subscribe to
 
+print("script started")
 
 class GotoPoint(Node):
     
@@ -19,7 +22,21 @@ class GotoPoint(Node):
         super().__init__("action_client")
         self._action_client = ActionClient(self, Action, 'action_server')
         self.subscription = self.create_subscription(PoseStamped, GOAL_POSE_TOPIC, self.subscription_callback, 10)
+        self.goal_point_subscription = self.create_subscription(String, GOAL_POINT_TOPIC, self.goal_point_callback, 10)  # Subscribe to goal_point topic
         
+    def goal_point_callback(self, msg):  # New callback for goal_point topic
+        data = msg.data
+
+        # Split the data string and convert each value to float
+        values = [int(x) for x in data.split()]
+        x, y, theta = values[0], values[1], values[2]
+
+        print("Moving to: " ,values)
+        self.get_logger().info("Received goal point message: %s" % msg)
+
+        goto_coordinates = str(x) + " " + str(y) + " " + str(theta)
+        self.send_goto_point(goto_coordinates)
+    
     # callback for subscription to "goal_pose"
     def subscription_callback(self, msg):
         position = msg.pose.position
@@ -77,6 +94,8 @@ class GotoPoint(Node):
 def main(args=None):
     rclpy.init(args=args)
     action_client = GotoPoint()
+    # goto_coordinates = str(int(7000)) + " " + str(int(11000)) + " " + str(int(90))
+    # action_client.send_goto_point(goto_coordinates)
     rclpy.spin(action_client)
     
 if __name__ == '__main__':
